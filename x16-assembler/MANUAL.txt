@@ -32,7 +32,7 @@ Labels and identifiers are limited to 20 characters. Line lengths are limited to
 | Expressions |
 +-------------+
 
-All expressions are calculated as 16 bit valuse.
+Expressions are calculated as 16 bit values.
 
 Binary operators with standard precedence:
   + - * / % & (and) | (or) ^ (exclusive or) >> << (shift right/left)
@@ -50,6 +50,23 @@ Unary operators:
 Terms:
   label, decimal, $[hexadecimal] %[binary] '[character code]'
 
+One's Complement:
+
+The assembler doesn't have an explicit one's complement operator, but exclusive or (^) with $FF can be used:
+
+MOO = $B000
+FOO = %00000100	; Bit 2
+
+; Clear the FOO bit in MOO:
+
+	lda MOO
+	and #(FOO ^ $FF)	; EOR with $FF for one's complement of FOO = %11111011
+	sta MOO
+	...
+
+This can also be done with the definition of FOO:
+
+FOO = %00000100^$FF		; FOO = %11111011
 
 +--------+
 | Labels |
@@ -66,8 +83,8 @@ A solitary global label is assigned the value of program counter.
 Labels/identifiers can be anywhere on a line if ONE of the following is met:
     * It ends with a colon (:)
     * It is an assignment (<label> = <value>)
-	* Is followed by a pseudo-op (mymac .macro or myvar .fill 2)
-  	* A label/indentifier that does not meet ONE of these criteria must start in the first column
+    * Is followed by a pseudo-op (mymac .macro or myvar .fill 2)
+    * A label/indentifier that does not meet ONE of these criteria must start in the first column
 
 
 +------------------------+
