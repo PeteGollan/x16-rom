@@ -1,0 +1,606 @@
++--------------------------------------+
+| Commander X16 Assembler in ROM v0.08 |
++--------------------------------------+
+       Released November 24, 2026        
+
+This is the manual for the 65C02/65C816 assembler integrated into the Commander X16 ROM.
+
+The Commander X16 Assembler was written by Paul Robson (paul@robsons.org.uk) and published as MIT open source on Codeburg:
+https://codeberg.org/paulscottrobson/x16-assembler
+
+The Assembler in ROM project is the work of Pete Wyspianski (AKA Gollan petegollan@outlook.com)
+
+The source code for the integrated assembler is available in the x16-assembler directory here:
+https://github.com/PeteGollan/X16_Assembler_in_ROM
+
+
+
++---------------+
+| The Assembler |
++---------------+
+
+The assembler can be called from EDIT (via Programming Toolbox), the BASIC command line, or a BASIC program.
+
+The assembler accepts standard 65C02 mnemonics with common variations (e.g. ASL / ASL A), operating as a 2-pass assembler. 
+
+Semicolon (;) delimits comments outside quoted strings.
+
+Labels and identifiers are limited to 20 characters. Line lengths are limited to 80 characters.
+
+
++-------------+
+| Expressions |
++-------------+
+
+All expressions are calculated as 16 bit valuse.
+
+Binary operators with standard precedence:
+  + - * / % & (and) | (or) ^ (exclusive or) >> << (shift right/left)
+
+Unary operators:
++----------------------------------------------------------+
+| Symbol  | Description |            Action                |
++----------------------------------------------------------+
+|   -     | minus sign  | Two's complement                 |
+|  ( )    | parentheses | Grouping and order of operations |
+|   *     | asterisk    | Program counter                  |
+| > and < | alligators  | Return lower and upper 8 bits    |
++----------------------------------------------------------+
+
+Terms:
+  label, decimal, $[hexadecimal] %[binary] '[character code]'
+
+
++--------+
+| Labels |
++--------+
+
+A global label consists of an alphabetic character followed by a sequence of alphanumeric characters, underscore,
+at sign, and period. It may have a colon (:) at the end.
+
+Labels beginning with underscore (_) or at sign (@) are "local labels" and only have scope between two global
+labels. Macro names are considered global labels.
+
+A solitary global label is assigned the value of program counter.
+
+Labels/identifiers can be anywhere on a line if ONE of the following is met:
+    * It ends with a colon (:)
+    * It is an assignment (<label> = <value>)
+	* Is followed by a pseudo-op (mymac .macro or myvar .fill 2)
+  	* A label/indentifier that does not meet ONE of these criteria must start in the first column
+
+
++------------------------+
+| Invoking the Assembler |
++------------------------+
+
+The assembler can be started from EDIT's Programming Toolbox, from the BASIC command line, or from a BASIC
+program. There are some differences.
+
+--------------------------
+EDIT's Programming Toolbox
+--------------------------
+
+With the source code open in EDIT, press ctrl-F to open the Programming
+Toolbox and then press "A" to start assembly.
+
+When assembling from EDIT, restrictions on direct assembly locations protect
+EDIT and the system. The following memory areas are available:
+
+	System memory: $0801 to $9EFF
+	RAM banks    : $03-$09
+	ROM banks    : $20-$FF
+
+------------------
+BASIC Command Line
+------------------
+
+Type:
+  asm"<filename>"
+
+When assembling from BASIC, restrictions on direct assembly locations protect
+the system. The following memory areas are available:
+
+	System memory: $0400 to $9EFF
+	RAM banks    : $03-$FF
+	ROM banks    : $20-$FF
+
+-------------
+BASIC Program
+-------------
+
+See Appendix A for details on using the assembler from a BASIC program.
+
++-------------------+
+| Assembler Options |
++-------------------+
+
+The assembler is entirely controlled through pseudo operations.
+
+-----------------
+Pseudo Operations
+-----------------
+
+pseudo-operations are listed by category in the following tables:
+
++----------------------------------------------------------------------------------------------------------+
+| ASSEMBLER CONTROL                                                                                        |
+|-----------------------+----------------------------------------------------------------------------------|
+| .direct               | Enables direct assembly to system RAM, banked RAM, and ROM                       |
+| .rambank [index]      | Select RAM bank used in direct assembly in the range $A000 to $BFFF (also .bank) |
+| .rombank [index]	    | Select ROM bank used in direct assembly in the range $C000 to $FFFF              |
+| .object  "file"       | Enables assembly output to the specified file (also .obj)                        |
+| .noaddr	            | Omits the address header in the .object file                                     |
+| .include "file"       | Include a source file                                                            |
+| .binary "file"        | Include binary file (also .incbin)                                               |
+| .list "file"          | Enables listing output to the specified file                                     |
++-----------------------+----------------------------------------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------+
+| DATA                                                                                                     |
+|-----------------------+----------------------------------------------------------------------------------|
+| .byte [values]        | Adds a sequence of bytes (also .db)                                              |
+| .word [values]        | Adds a sequence of words in low/high order (also .dw)                            |
+| .text [string|byte]   | Sequence of quoted strings (ASCII) or bytes, can be mixed                        |
+| .petscii [string|byte]| Same as .text, except it interprets quoted strings as mixed case PETSCII         |
+| .fill count[,value]   | Allocates an area of memory and optionally fills with specified value (also .ds) |
+| .res count[,value]    | Identical to .fill
+| .align value          | Puts on align byte boundary                                                      |
++-----------------------+----------------------------------------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------+
+| MACROS/CONDITIONALS/LOGICAL                                                                              |
+|-----------------------+----------------------------------------------------------------------------------|
+| .macro <name>         | Define macro (also name .macro) (see below)                                      |
+| .endmacro             | Ends the definition of a macro.
+|-----------------------|----------------------------------------------------------------------------------|
+| .if/.else/.endif      | Define a conditional assembly block (see below)                                                 |
+| .ifdef/.ifndef        | Define a conditional assembly block (see below)                                                 |
+| .assert <expression>  | Causes an "asert failed" error if <expression> is false.                         |
+|-----------------------|----------------------------------------------------------------------------------|
+| .logical <addr>	    | Starts a "logical" code block at <addr> (see below)                              |
+| .endlogical           | Ends a "logical" code block (see below)                                          |
++----------------------------------------------------------------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------+
+| PROCESSOR SUPPORT                                                                                        |
+|-----------------------+----------------------------------------------------------------------------------|
+| .p65C02		        | Selects the WDC W65C02S processor instruction set. THIS IS THE DEFAULT.          |
+|-----------------------|----------------------------------------------------------------------------------|
+| .p65C816		        | Selects the WDC W65C816S processor instruction set.                              |
+|-----------------------|----------------------------------------------------------------------------------|
+| .a8/.a16   	        | 65C816 ONLY. Selects the size of accumulator immediate mode operands. DEFAULT    |
+|                       | is .a8. The setting persists even if the processor is changed to 65C02 and back. |
+|-----------------------|----------------------------------------------------------------------------------|
+| .i8/.i16   	        | 65C816 ONLY. Selects the size of index register immediate mode operands. DEFAULT |
+|         		        | is .a8. The setting persists even if the processor is changed to 65C02 and back. |                                                                                  |
++-----------------------+----------------------------------------------------------------------------------+
+
+---------
+ .direct
+---------
+The .direct option tells the assembler to send object code directly to memory as it is being assembled. It can
+be used on its own to quickly build and test projects.
+
+Direct can also be used with .object, but use caution when changing the program counter (using `*=`), as
+subsequent code sent to the file will have the new origin. This **can** be used to create relocatable code,
+however the ".logical/.endlogical" pseudo ops are intended for this purpose.
+
+-----------------------
+ .rambank and .rombank
+-----------------------
+
+Direct mode (.direct) must be enabled to use these operations. When [index] is omitted, the next RAM or
+ROM bank is selected. Pseudo-ops .rambank and .rombank do **not** change the program counter. This must be done
+explictly:
+
+	.direct
+	.rambank $5	; Sets RAM bank to $5
+	*=$A000		; The instructions will be assembled to RAM bank $5, starting at $A000.
+	lda #foo
+	sta bar		
+
+	.rambank	; Increments the set RAM bank. In this example, it sets RAM bank to $6.
+	*=$A010		; The instructions will be assembled to RAM bank $6, starting at $A010.
+	asl
+	sta moo
+
+---------------------
+ .object and .noaddr
+---------------------
+
+By default, .object (or .obj) creates a file that has an address header and is used with LOAD:
+
+	Source file: .obj "foo.prg"
+	...
+	LOAD "foo.prg",8,1
+
+
+With the .noaddr option, the assembler omits the load address and requires BLOAD:
+
+	Source file: .obj "moo.bin"
+	...
+	BLOAD "moo.bin",8,1,$A000
+
+--------------------
+ .fill .res and .ds
+--------------------
+Fill .fill accepts a count in the range 0-255 and an optional value parameter, also in the range 0-255.
+
+Fill has two modes of operation:
+
+Prior to code being generated, fill advances the program counter by the given count in .direct and does not
+write anything to an object file. This is how .fill is used to resever variables in zero page and other
+locations:
+
+	
+		* = $22		; zero page
+	var1:	.fill 2
+	var2:	.fill 4
+	
+After code has been generated, fill emits the number of bytes specified by count, starting at the program
+counter. The default fill value is zero, but an optional fill value may be specified:
+
+		* = $1000
+	main:	lda #$5a
+			ldx #$a5
+			rts
+	var5:	.fill 2,$aa		; Produces: $aa $aa
+	var6:	.fill 1			; Produces: $00
+	var7:	.fill 4,$99		; Produces: $99 $99 $99 $99 
+
+To accomodate source code developed for other assemblers, .res and .ds are synonyms for .fill.
+
+
+----------------------
+ .include and .binary
+----------------------
+
+The .include (or .inc) option includes another source file:
+
+	.include "KERNAL_defines.inc"
+	.include "math_library.asm"
+
+Multiple include files can be used. Include files can be nested, up to 6 files deep. The use of .object and
+.list reduce the maximum nesting by one level each.
+
+The .binary (or .incbin) option is used to include binary files into a program. The binary files can be
+pre-assembled modules, graphics, tables, etc.
+
+One common use of .binary is to add a BASIC stub at the beginning of an assembly program so it can be started
+with "RUN":
+
+	* = $801
+	.binary "basic_header.bin"
+
+main:
+	<asm code goes here>
+
+Note about using  .binary (or .incbin) with object files:
+
+  By default, object files start with a two-byte address header. If you are assembling modules to use with
+  .binary, either take the two-byte header into account in the code or use the .noaddr option when assembling
+  these modules.
+
+--------
+ Macros
+--------
+
+The the identifier can appear either *before* or *after* the .macro pseudo-op:
+
+	.macro foo
+	foo .macro	; 64TASS compatibility
+
+Text substitution macros are permitted to a depth of 4 or 5, depending on remaining identifier storage space.
+
+Macro names are global labels and thus reset the local label stack.
+
++---------------|-----------------------------------------+
+| Operation     | Function                                |
+| ------------- | --------------------------------------- |
+| .macro name   | Defines a macro (also name .macro)      |
+| .endm         | Ends a macro                            |
+| \1 \2 \3      | Text substitutions of up to 3 arguments |
++---------------|-----------------------------------------+
+
+Macro example:
+
+	.macro set16	; addr/label, 16-bit value
+	lda 	#(>\2)
+	sta 	\1
+	lda 	#(<\2)
+	sta 	1+(\1)
+	.endm
+
+
+------------------------
+  Conditional Assembly
+------------------------
+
+The test program "condtest.asm" has examples of conditonal assembly.
+
+Conditional assembly example:
+
+DEBUG=1
+moo = $beef
+
+.if DEBUG	; This is TRUE because DEBUG is non-zero
+  jsr InitDebugger	    ; Will be assembled in this example
+  ...
+.else
+  jsr WarnNoDebugger	; Will NOT be assembled in this example
+.endif
+
+A conditional block is started with:
+.if <expression>
+
+If the expression evaluates to a non-zero 16-bit value, it will be TRUE and assembly
+will continue at the line after the ".if" until EITHER an .endif is reached OR an .else
+is reached. If the expression evaluates to zero, it will be FALSE and assembly will
+stop until EITHER an .endif is reached OR an .else is reached.
+
+Within a conditional block, the optional pseudo op .else inverts the assembly state. If assembly
+is occuring (because the expression was true), .else will cause assembly to stop until
+end conditional block ends with .endif. If assembly is stopped, .else will cause assembly
+to start. 
+
+Two variants of .if are provided:
+  .ifdef <identifier>
+  .ifndef <identifier>
+
+These conditionals test if the identifier has been defined or not defined respectively. They
+replace .if to start a conditional block and are used with .else and .endif in the same way.
+Note that .ifndef <identifier> will be TRUE if the identifier is NOT defined as in this example:
+
+.ifndef MATHLIB			; TRUE because MATHLIB is not defined
+.include "mathlib.asm"	; This line will be assembled
+.endif
+
+---------
+ Logical
+---------
+The test program "logtest.asm" has a full example of the use of logical assembly to relocate
+and run code.
+
+A logical block is used to assemble code within a program that is intended to run at a different address.
+Any labels created within a logical block will have an adddress within the logical block address space.
+
+Logical assembly example:
+
+* = $1000
+main:
+  <init code>
+  <code to relocate mathlib to a RAM bank, starting at $A000
+  jsr mathlib_main	; Start the relocated code
+  rts
+
+mathlib_start:
+.logical $A000
+mathlib_main:
+<code for the math lib>
+.endlogical
+mathlib_end:
+
+In the example, the "math lib" runs at $A000, but the host program is loaded and run at $1000. Within the
+host program, the labels mathlib_start and mathlib_end can be used to copy the logical block code to it's
+target address. Then the label mathlib_main can be used to call the code at its runtime location.
+
+Within a logical block, the origin cannot be changed. Use another logical block instead.
+
+-------------------
+ Processor Support
+-------------------
+
+The assembler supports W65C02S and W65C816S processors. The default is W65C02S. To switch to W65C816S
+assembly use the .p65c816 psuedo op. To switch back to W65C02S assembly use .p65c02. When 65c816 mode
+is set, the pseudo ops .a8/.a16 and .i8/.i16 determine the size of immediate operands for the a-regsiter
+and index (x and y) registers. Note that the processor support pseudo ops only inform the assembler
+about the programmer's intention. It is up to the programmer to include the appropriate assembly
+instructions to change the modes.
+
+Assembly mode and register size changing example:
+
+	.p65c816
+    clc
+	xce			; Switch to 65C816 mode
+	.a16
+	.i16
+	rep #$30	; Set acc and index to 8-bit mode
+	lda #$beef	; Immediate acc data is 16-bits
+	.a8
+	.i8
+    sep #$30	; set acc and index regs to 8-bit mode
+    lda #$12    ; Immediat index data is 8-bits
+	
+	sec			; Switch to 65C02 mode
+	xce			; Must be assembled in 65C816 mode
+	.p65c02
+	...
+
+---------------------
+ Alternate Mnemonics
+---------------------
+
+The following alternate mnemonics are provided for both procssor modes:
++-----+-----+ 
+| STD | ALT |
++-----+-----+ 
+| bcc | blt |
++-----+-----+ 
+| bcs | bge |
++-----+-----+ 
+
+---------------
+ W65C02S Notes
+---------------
+
+The following instructions are omitted from 65C02 support:
+	BBR/BBS/RMB/SMB
+
+BRK can be optionally assembled with a signature byte:
+
+    brk
+    brk #$12        ; imm - optional signature byte
+    brk $12         ; dp - optional signature byte (alternate)
+
+---------------
+ W65C816 Notes
+---------------
+
+BRK and COP can be optionally assembled with a signature byte:
+
+    brk
+    brk #$12        ; imm - optional signature byte
+    brk $12         ; dp - optional signature byte (alternate)
+
+    cop
+    cop #$12        ; imm - optional signature byte
+    cop $12         ; dp - optional signature byte (alternate)
+
+WDM requires a signature byte:
+
+    wdm #$12            ; imm - mandatory signature byte
+    wdm $12             ; dp - mandatory signature byte (alternate)
+
+To see how the new 65C816 addressing modes are used, look at the program
+"test816.asm" in the "testing" directory.
+
+
++--------------------------------+
+| Source Code Character Encoding |
++--------------------------------+
+
+The assembler can process source code in either ASCII or PETSCII upper case. Typical mixed-case assembly code
+can be written in ASCII by selecting EDIT's ISO mode. In ASCII, identifiers and labels can be in mixed
+upper/lower case and can include underscore (_), at sign (@) and period (.). The .text pseudo-op is used to
+produce ASCII strings, and the .petscii pseudo-op is used to produce mixed case PETSCII strings.
+
+PETSCII upper case can also be used, but there are some quirks. The underscore is now a PETSCII left arrow (←).
+The .text pseudo-op must be used to produce PETSCII strings, as it doesn't transcode.
+
+PETSCII mixed case can be used to create assembly source code, however identifiers, mnemonics, and pseudo-ops
+must be written in lower case.
+
+
++-----------------+
+| Assembly Errors |
++-----------------+
+
+The first error stops assembly and produces a message that includes the file name and line number of the error.
+In EDIT, an error in an include file will show the name and line number of the error file and the EDIT cursor
+will be placed on the line in the current source file that, ultimately, includes the error file. In other words,
+in the case of deeply nested include files, the EDIT cursor will be placed on the top include. For file names
+longer than 32 characters, the assembler splits the displayed file name into two 17-character halves with an
+asterix (*) in the middle.
+
+
++---------------+
+| Assembly Tips |
++---------------+
+
+Assembly code does NOT require .direct, .obj, or *= to be assembled. Code will not be produced without at
+least one of .direct or .obj, but it can be useful to "assemble" code to check it and find errors. For example,
+a syntax error in an include file can be quickly located by opening the file in EDIT and assembling it.
+
+
+
++--------------------+
+| Future Development |
++--------------------+
+
+Focus for future releases will be activites to support official ROM inclusion.
+
+Please share you ideas and suggestions.
+
++---------------------------------------------+
+| Appendix A - Using ASM from a BASIC Program |
++---------------------------------------------+
+
+The sample program "asmbasic.bl" demonstrates the use of the assembler from a BASIC program. You can call the assembler with a file name:
+
+  10 asm"<filename>"
+
+In this case, the assembler with display it's usual messages and return control to the BASIC program.
+
+The assembler output can be surpressed by setting two "magic bytes" prior to calling the assembler:
+
+  ASM_EC = $BFFE : REM ERROR CODE
+  ASM_CC = $BFFF : REM CHECK CODE
+
+  ASM_MB1 = $FA : REM Magic bytes to supress output
+  ASM_MB2 = $FB
+
+  BANK 0
+  POKE ASM_EC,ASM_MB1		: REM supress asm output
+  POKE ASM_EC+1,ASM_MB2
+
+To ensure that assembler output is NOT surpressed, these two bytes can be set to $FF prior to calling the assembler:
+
+  BANK 0
+  POKE ASM_EC,$FF		: REM ensure ASM output is shown
+  POKE ASM_EC+1,$FF
+
+The assembler error code and check code can be retrieved after assembly:
+
+  BANK 0
+  EC = PEEK(ASM_EC)
+  CC = PEEK(ASM_CC)
+
+The check code is the one's complement of the error code. It is provided as an optional confirmation that the error code is valid:
+
+  IF (NOT(CC) = EC) GOTO CC_VALID
+
+See Appendix B for a list of error codes.
+
+The assembler makes the text of the response string available to a BASIC program in the KERNAL_buffer in RAM bank 0. This is a null-terminated string that is a maximum of 80 characters long. See the "asmbasic.bl" program subroutine "asm_response" for sample code that retrieves this string. The assembler also makes the "bytes" count available. An example of retrieving this value is  provided in the "asm_response" subroutine.
+
+
++--------------------------+
+| Appendix B - Error Codes |
++--------------------------+
+
++-----+---------------------------------------------------------+
+|Code |                   Error            			            |
+|-----|---------------------------------------------------------|
+| $00 | Assembly success (not an error)     			        |
+| $01 | General syntax error					                |
+| $02 | Bad identifier, missing/too long			            |
+| $03 | Divide by zero						                    |
+| $04 | Value of an identifier has changed			            |
+| $05 | Source file not found					                |
+| $06 | Undefined identifier					                |
+| $07 | Relative branch range					                |
+| $08 | Address mode not supported                              |
+| $09 | Bad expression						                    |
+| $0A | Line too long						                    |
+| $0B | Too many macro parameters				                |
+| $0C | Bad expansion parameter					                |
+| $0D | Out of memory						                    |
+| $0E | Object file error (open or write)			            |
+| $0F | Object file already specified (multiple .obj) 		    |
+| $10 | List file error (open or write)				            |
+| $11 | List file already specified (multiple .list)		    |
+| $12 | Direct assembly address out of range			        |
+| $13 | .bank requires .direct 					                |
+| $14 | .rombank requires .direct 				                |
+| $15 | Bank number out of range (for RAM or ROM banks)		    |
+| $16 | .rambank required for direct assembly to $A000-$BFFF	|
+| $17 | .rombank required for direct assembly to $C000-$FFFF	|
+| $18 | .macro requires an identifier				            |
+| $19 | .macro identifier already exists			            |
+| $1A | Too many nested files					                |
+| $1B | Source file read error	                                |
+| $1C | Nested conditional                                      |
+| $1D | Nested logical                                          | 
+| $1E | .else/.endif without .if                                |
+| $1F | .endlogical without .logical                            |
+| $20 | .assert failed                                          |
+| $21 | Can't change origin in .logical block                   |
+| $22 | Requires 65c816 mode                                    |
+| $23 | Requires 65c02 mode                                     | 
+| $24 | Operand requires 16-bit register mode                   |
+| $25 | 8-bit operand required                                  |
+|.....|.......							                        |
+| $E1 | Source file not specified (e.g. ASM"")			        |
++-----+---------------------------------------------------------+
+
