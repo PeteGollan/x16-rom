@@ -451,6 +451,7 @@ shutdown:
 .include "selection.inc"
 .include "mouse.inc"
 .include "compile.inc"
+.include "assemble.inc"
 .include "help.inc"
 .include "jsrfar.inc"
 

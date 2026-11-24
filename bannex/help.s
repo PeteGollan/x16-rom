@@ -57,6 +57,9 @@ uc_address = $42
 	lda #13
 	jsr bsout
 
+	jsr printstring
+	.byte "ASM TEST ROM R49-TM.BIN       ",13,0
+
 show_git_hash:
 	jsr printstring
 	.byte "GIT COMMIT ",0

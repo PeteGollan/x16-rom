@@ -150,6 +150,7 @@ stmdsp2	; statements
 	.word oval-1
 	.word ring-1
 	.word chbload-1
+	.word casm-1
 	; functions
 ptrfunc	.word vpeek
 	.word mx

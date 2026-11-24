@@ -174,7 +174,8 @@ BANNEX_SOURCES= \
 	bannex/sprite.s \
 	bannex/basload.s \
 	bannex/hbload.s \
-	bannex/modulus.s
+	bannex/modulus.s \
+	bannex/x16asm.s
 
 DIAG_SOURCES = \
 	diag/diag.s
@@ -289,6 +290,12 @@ BASLOAD_DEPS= \
 	$(wildcard basload/*.asm) \
 	$(wildcard basload/*.inc)
 
+ASM_DEPS= \
+	$(GENERIC_DEPS) \
+	$(x16assembler/build/libassembler.asm) \
+	$(x16assembler/source/main.asm) \
+	$(wildcard x16assembler/source/api/x16/*.asm)
+
 DIAG_DEPS= \
 	$(GENERIC_DEPS) \
 	diag/i2c.inc \
@@ -324,7 +331,8 @@ BANK_BINS = \
 	$(BUILD_DIR)/util.bin \
 	$(BUILD_DIR)/bannex.bin \
 	$(BUILD_DIR)/x16edit-rom.bin \
-	$(BUILD_DIR)/basload-rom.bin
+	$(BUILD_DIR)/basload-rom.bin \
+	$(BUILD_DIR)/asm-rom.bin
 
 ROM_LABELS=$(BUILD_DIR)/rom_labels.h
 ROM_LST=$(BUILD_DIR)/rom_lst.h
@@ -490,6 +498,13 @@ $(BUILD_DIR)/basload-rom.bin: $(BASLOAD_DEPS)
 	cp basload/build/basload-rom.bin $(BUILD_DIR)/basload-rom.bin
 	./scripts/trace_info.py 15 basload/conf/basload-rom.cfg basload/build/basload-rom.lst $(BUILD_DIR)/basload-rom.rlst $(BUILD_DIR)/basload_labels.h
 
+# Bank 10: X16-ASSEMBLER
+	@mkdir -p $$(dirname $@)
+$(BUILD_DIR)/asm-rom.bin: $(ASM_DEPS)
+	(cd x16-assembler && make)
+	cp x16-assembler/build/asm-rom.bin $(BUILD_DIR)/asm-rom.bin
+	./scripts/trace_info.py 16 x16-assembler/conf/x16asm-rom.cfg x16-assembler/build/asm-rom.lst  $(BUILD_DIR)/asm-rom_10.rlst $(BUILD_DIR)/asm-rom_10_labels.h
+
 $(BUILD_DIR)/rom_labels.h: $(BANK_BINS)
 	./scripts/symbolize.sh 0 build/x16/kernal.sym   > $@
 	./scripts/symbolize.sh 1 build/x16/keymap.sym  >> $@
@@ -522,4 +537,4 @@ $(BUILD_DIR)/rom_lst.h: $(BANK_BINS)
 	./scripts/trace_lst.py D $(BUILD_DIR)/x16edit-rom_D.rlst           >> $@
 	./scripts/trace_lst.py E $(BUILD_DIR)/x16edit-rom_E.rlst           >> $@
 	./scripts/trace_lst.py F $(BUILD_DIR)/basload-rom.rlst             >> $@
-
+	./scripts/trace_lst.py 10 $(BUILD_DIR)/asm-rom_10.rlst                >> $@

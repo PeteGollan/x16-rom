@@ -1208,12 +1208,20 @@ no:
     cmp #$42
     beq basload
 
+    ; Check x16-assembler
+    cmp #$41        ; "B"
+    beq assembler
+
     ;Ignore rest
 exit:
     rts
 
 basload:
     call_secondbank compile_basload
+    rts
+
+assembler:
+    call_secondbank x16_assembler
     rts
 
 close:

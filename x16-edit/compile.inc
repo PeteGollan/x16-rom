@@ -63,12 +63,29 @@ msg:
     ldx file_cur_filename_len
     bne :+
     
+    ; Show no file error message and exit
     lda #2
     sta APP_MOD
     
     call_firstbank screen_print_default_footer
     ldx #<msg_nofile
     ldy #>msg_nofile
+    call_firstbank screen_print_status
+    call_firstbank cursor_activate
+    rts
+
+    ; Check that the file is saved (added by Gollan)
+:
+    lda mem_modified
+    beq :+                  ; Taken if NOT modified (flag is zero/false)
+    
+    ; Show file no saved error message and exit asm tool
+    lda #2
+    sta APP_MOD
+
+    call_firstbank screen_print_default_footer
+    ldx #<msg_notsaved
+    ldy #>msg_notsaved
     call_firstbank screen_print_status
     call_firstbank cursor_activate
     rts
@@ -174,6 +191,9 @@ msg_loading:
     .byt "loading...",0
 
 msg_nofile:
+    .byt "no file to compile",0
+
+msg_notsaved:
     .byt "file not saved",0
 
 msg_nobasload:

@@ -995,6 +995,10 @@ chbload:
 	bannex_call bannex_hbload
 	rts
 
+casm:
+	bannex_call bannex_x16asm
+	rts
+
 ; BASIC's entry into jsrfar
 .setcpu "65c02"
 .export bjsrfar

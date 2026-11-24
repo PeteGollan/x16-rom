@@ -31,6 +31,7 @@ rom_bank = 1
 .import tattr
 .import hbload
 .import mod
+.import x16asm
 
 .segment "JMPTBL"
 	jmp renumber           ; $C000
@@ -55,4 +56,5 @@ rom_bank = 1
 	jmp tattr              ; $C039
 	jmp hbload             ; $C03C
 	jmp mod                ; $C03F
+	jmp x16asm		       ; $C042
 
